@@ -8,6 +8,6 @@ class block:
         self.blkid = #increment a global txid plus current time
         self.transactions = listofTransactions
         self.timestamp = time.time()
-#
+        
     def __repr__(self):
         return str(self.blkid)
