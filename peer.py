@@ -3,6 +3,7 @@ from messages import BaseMessage
 import transaction
 import random
 import block
+
 class Connection(object):
     """
     Models the data transfer between peers and the implied latency
@@ -84,6 +85,13 @@ class Peer(object):
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.name)
 
+    def connect_peer(self, other):
+        #this is to connect the new peer to the peerserver
+        # create adhoc connection and send Hello
+        cnx = Connection(self.env, self.peer, other)
+        cnx.send(Hello(self.peer), connect=True)
+        print self.known_peers
+        
     def connect(self, other):
         if not self.is_connected(other):
             print "%r connecting to %r" % (self, other)
@@ -121,11 +129,11 @@ class Peer(object):
 
     def generateTransaction(self):
         #peer should know of all the nodes in the network to whom it can send coins
-        receiver = #select randomly from the list
+        #receiver = #select randomly from the list
         sender=self.name
         coins = random.randint(1,self.balance)
         tx = transaction(self.name, receiver, coins)
-        #broadcast the transaction 'tx'
+        self.broadcast(tx)
         print tx        
         return 
 
@@ -139,7 +147,8 @@ class Peer(object):
         lisofTransactions = self.unspentTransactions[:5]
         self.unspentTransactions = self.unspentTransactions[5:] 
         newBlock = block(lisofTransactions)
-        #broadcast a new block   
+        self.broadcast(newBlock)
+        #have to update the balance, the mining fees once the block gets added to the chain   
         return 
 
     def run(self):

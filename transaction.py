@@ -3,7 +3,7 @@ import time
 class transaction:
 
     def __init__(self, sender,receiver, coins):
-        self.txid = #incremented global txid + current time
+        #self.txid = #incremented global txid + current time
         self.sender = sender
         self.receiver = receiver
         self.coins = coins
