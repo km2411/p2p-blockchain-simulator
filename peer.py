@@ -1,6 +1,6 @@
 import simpy
 from messages import BaseMessage
-import transaction
+from transaction import transaction
 import random
 import block
 
@@ -73,7 +73,7 @@ class Peer(object):
         self.name = name
         self.type = peer_type
         self.unspentTransactions = []
-        self.balance = 0
+        self.balance = 100
         self.env = env
         self.connections = dict()
         self.msg_queue = simpy.Store(env)       
@@ -84,29 +84,13 @@ class Peer(object):
 
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.name)
-
-    def connect_peer(self, other):
-        #this is to connect the new peer to the peerserver
-        # create adhoc connection and send Hello
-        cnx = Connection(self.env, self.peer, other)
-        cnx.send(Hello(self.peer), connect=True)
-        print self.known_peers
-        
+    
     def connect(self, other):
         if not self.is_connected(other):
             print "%r connecting to %r" % (self, other)
             self.connections[other] = Connection(self.env, self, other)
             if not other.is_connected(self):
                 other.connect(self)
-
-    def disconnect(self, other):
-        if self.is_connected(other):
-            print "%r disconnecting from %r" % (self, other)
-            del self.connections[other]
-            if other.is_connected(self):
-                other.disconnect(self)
-            for cb in self.disconnect_callbacks:
-                cb(self, other)
 
     def is_connected(self, other):
         return other in self.connections
@@ -129,8 +113,20 @@ class Peer(object):
 
     def generateTransaction(self):
         #peer should know of all the nodes in the network to whom it can send coins
-        #receiver = #select randomly from the list
+        #global peers
+        #l = len(peers)
+        #r = random.randint(0,l) #peer can generate a transaction to himself too
+        receiver = self
+        for other in self.connections:
+            if random.randint(0,1):
+                receiver = other
+                break
+
         sender=self.name
+        if self.balance < 1:
+            print "insufficient balance"
+            return
+
         coins = random.randint(1,self.balance)
         tx = transaction(self.name, receiver, coins)
         self.broadcast(tx)
@@ -155,6 +151,11 @@ class Peer(object):
         while True:
             # check network for new messages
             #print self, 'waiting for message'
+            r = random.randint(0,1)
+            if r:
+                self.generateTransaction()
+                print str(self.name) + " generating txn"
+
             msg = yield self.msg_queue.get()
             self.receive(msg)
 

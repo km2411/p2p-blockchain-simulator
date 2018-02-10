@@ -23,10 +23,6 @@ def createPeers(peer_server, numOfPeers):
         else:
             p = initializePeer('p%d' % i, 'fast', env)
 
-        # connect to server
-        #connection_manager = p.services[0]
-        #print connection_manager
-        
         p.connect(peer_server)
         peers.append(p)
     
@@ -52,6 +48,7 @@ pserver.bandwidth_upload = pserver.bandwidth_download = 5 * Mbits
 
 #intilize the distributions
 #dist to select number of connections for a peer 
+global peers 
 peers = createPeers(pserver, n)
 
 print("Starting Simulator")
