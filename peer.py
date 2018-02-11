@@ -80,7 +80,7 @@ class Peer(object):
         self.active = True
         self.services = [] # Service.handle_message(self, msg) called on message
         self.disconnect_callbacks = []
-        env.process(self.run())
+        self.env.process(self.run())
 
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.name)
@@ -104,11 +104,16 @@ class Peer(object):
 
     def send(self, receiver, msg):
         # fire and forget
-        assert msg.sender == self
-        self.connections[receiver].send(msg)
+        #assert msg.sender == self
+        #self.connections[receiver].send(msg)
+
+        cnx = Connection(self.env, self, receiver)
+        cnx.send(msg)
 
     def broadcast(self, msg):
+        #print "message is :" + str(msg)
         for other in self.connections:
+            #print other
             self.send(other, msg)
 
     def generateTransaction(self):
@@ -121,13 +126,13 @@ class Peer(object):
             if random.randint(0,1):
                 receiver = other
                 break
-
+        coins = random.randint(1,self.balance)
+                
         sender=self.name
-        if self.balance < 1:
+        if self.balance < coins:
             print "insufficient balance"
             return
 
-        coins = random.randint(1,self.balance)
         tx = transaction(self.name, receiver, coins)
         self.broadcast(tx)
         print tx        
@@ -151,11 +156,10 @@ class Peer(object):
         while True:
             # check network for new messages
             #print self, 'waiting for message'
-            r = random.randint(0,1)
-            if r:
-                self.generateTransaction()
-                print str(self.name) + " generating txn"
-
+            #if random.randint(0,1):
+            print str(self.name) + " generating txn"
+            self.generateTransaction()
+                
             msg = yield self.msg_queue.get()
             self.receive(msg)
-
+            #yield self.env.timeout(1)

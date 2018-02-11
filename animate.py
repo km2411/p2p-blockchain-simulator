@@ -60,6 +60,9 @@ class Visualizer(object):
 
         edges = nx.draw_networkx_edges(G, pos)
         nodes = nx.draw_networkx_nodes(G, pos, node_size=20)
+        
+        #nx.draw_networkx(G)
+
         #labels = dict((p, p.name) for p in self.peers)
         #nx.draw_networkx_nodes(G, pos, labels=labels, font_color='k')
 
