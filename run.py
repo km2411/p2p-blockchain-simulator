@@ -2,7 +2,7 @@ import random
 import simpy
 import sys
 from peer import  Peer
-import manager
+from manager import manager
 
 # No. of peers
 n = int(sys.argv[1])
@@ -24,23 +24,10 @@ def createPeers(peer_server, numOfPeers):
         else:
             p = initializePeer('p%d' % i, 'fast', env)
 
-        #p.connect(peer_server)
+        p.connect(peer_server)
         peers.append(p)
     
-    # set DSL bandwidth
-    for p in peers:
-        for other in peers:
-            prob = random.randint(0,1)
-            if prob:
-                p.connect(other)
-        
-        #manager = manager(p)
-        #manager.simulate()
-
-        #print "peer connections";
-        #print p.name;
-        #print " "
-        #print p.connections
+    
         if p.type == 'slow':
             p.bandwidth_upload = p.bandwidth_download = 5 * Mbits
         else:
@@ -59,15 +46,17 @@ pserver.bandwidth_upload = pserver.bandwidth_download = 5 * Mbits
 global peers 
 peers = createPeers(pserver, n)
 
-peers_gen = []
-for p in peers:
-    peers_gen.append(p.run())
-
-for i in range(10):
-    for p in peers_gen:
-        print p
-
 print("Starting Simulator")
+print "Peers Connecting...."
+for p in peers:
+        for other in peers:
+            prob = random.randint(0,1)
+            if prob and (p != other):
+                p.connect(other)
+        
+        m = manager(p)
+        m.simulate()
+
 if VISUALIZATION:
     from animate import Visualizer
     Visualizer(env, peers)

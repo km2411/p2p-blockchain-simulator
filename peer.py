@@ -99,14 +99,12 @@ class Peer(object):
 #        print self, 'received', msg
         assert isinstance(msg, BaseMessage)
         for s in self.services:
+            print "receive services ";
+            print s
             assert isinstance(s, BaseService)
             s.handle_message(self, msg)
 
     def send(self, receiver, msg):
-        # fire and forget
-        #assert msg.sender == self
-        #self.connections[receiver].send(msg)
-
         cnx = Connection(self.env, self, receiver)
         cnx.send(msg)
 
@@ -123,19 +121,21 @@ class Peer(object):
         #r = random.randint(0,l) #peer can generate a transaction to himself too
         receiver = self
         for other in self.connections:
-            if random.randint(0,1):
+            #print other.name
+            if random.randint(0,1) and other.name !='PeerServer':
                 receiver = other
                 break
-        coins = random.randint(1,self.balance)
                 
         sender=self.name
-        if self.balance < coins:
+        if self.balance < 1:
             print "insufficient balance"
             return
 
+        coins = random.randint(1,self.balance)
+        #update balance     
         tx = transaction(self.name, receiver, coins)
         self.broadcast(tx)
-        print tx        
+        print str(self.name) + " generating transaction--> TX" + str(tx)        
         return 
 
     def createBlock(self):
@@ -155,11 +155,7 @@ class Peer(object):
     def run(self):
         while True:
             # check network for new messages
-            #print self, 'waiting for message'
-            #if random.randint(0,1):
-            print str(self.name) + " generating txn"
-            self.generateTransaction()
-                
+            print self, 'waiting for message'
             msg = yield self.msg_queue.get()
             self.receive(msg)
-            #yield self.env.timeout(1)
+            

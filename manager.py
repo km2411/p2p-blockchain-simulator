@@ -1,9 +1,8 @@
 from peer import BaseService, Connection
+import random
 
 class manager:
   
-    ping_interval = 1
-
     def __init__(self, peer):
         self.peer = peer
         self.env.process(self.run())
@@ -22,13 +21,12 @@ class manager:
     def simulate(self):
         # CASE: too few peers
         if random.randint(0,1):
-                print str(self.name) + " generating txn"
-                self.generateTransaction()
+            self.peer.generateTransaction()
 
     def run(self):
         while True:
             self.simulate()
-            yield self.env.timeout(self.ping_interval)
+            yield self.env.timeout(1)
 
 
 
