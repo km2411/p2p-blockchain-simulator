@@ -1,7 +1,7 @@
 from peer import BaseService, Connection
 import random
 
-class manager:
+class Manager:
   
     def __init__(self, peer):
         self.peer = peer

@@ -5,7 +5,7 @@ class BaseMessage(object):
 
     def __init__(self, sender, data=None):
 #        assert isinstance(sender, Peer)
-        self.sender = sender
+        self.sender = sender #Peer(sender)
         self.data = data
 
     @property

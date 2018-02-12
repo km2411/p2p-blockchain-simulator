@@ -1,8 +1,8 @@
 import simpy
 from messages import BaseMessage
-from transaction import transaction
+from transaction import Transaction
 import random
-import block
+from block import Block
 
 class Connection(object):
     """
@@ -133,7 +133,7 @@ class Peer(object):
 
         coins = random.randint(1,self.balance)
         #update balance     
-        tx = transaction(self.name, receiver, coins)
+        tx = Transaction(self.name, receiver, coins)
         self.broadcast(tx)
         print str(self.name) + " generating transaction--> TX" + str(tx)        
         return 
@@ -147,7 +147,7 @@ class Peer(object):
             
         lisofTransactions = self.unspentTransactions[:5]
         self.unspentTransactions = self.unspentTransactions[5:] 
-        newBlock = block(lisofTransactions)
+        newBlock = Block(lisofTransactions)
         self.broadcast(newBlock)
         #have to update the balance, the mining fees once the block gets added to the chain   
         return 

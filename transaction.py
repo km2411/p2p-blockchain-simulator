@@ -1,7 +1,7 @@
 import time
 import random
 
-class transaction:
+class Transaction:
 
     def __init__(self, sender,receiver, coins):
         self.txid = random.randint(1,100)#incremented global txid + current time

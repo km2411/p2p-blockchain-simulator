@@ -2,13 +2,14 @@ import random
 import simpy
 import sys
 from peer import  Peer
-from manager import manager
+from manager import Manager
+import numpy as np
 
 # No. of peers
 n = int(sys.argv[1])
-SIM_DURATION = 1/100
+SIM_DURATION = 5
 Mbits = 1000000
-#VISUALIZATION = False
+VISUALIZATION = False
 VISUALIZATION = True
 
 def initializePeer(peer_id, peer_type, env):
@@ -24,7 +25,7 @@ def createPeers(peer_server, numOfPeers):
         else:
             p = initializePeer('p%d' % i, 'fast', env)
 
-        p.connect(peer_server)
+        #p.connect(peer_server)
         peers.append(p)
     
     
@@ -49,13 +50,14 @@ peers = createPeers(pserver, n)
 print("Starting Simulator")
 print "Peers Connecting...."
 for p in peers:
+    while len(p.connections.keys()) < 1 + np.random.binomial(n,0.5,1):
         for other in peers:
             prob = random.randint(0,1)
             if prob and (p != other):
                 p.connect(other)
         
-        m = manager(p)
-        m.simulate()
+    m = Manager(p)
+    m.simulate()
 
 if VISUALIZATION:
     from animate import Visualizer
