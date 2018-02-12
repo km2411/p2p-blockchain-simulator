@@ -23,6 +23,9 @@ class Manager:
         if random.randint(0,1):
             self.peer.generateTransaction()
 
+        #call the create block function with some distribution to keep a check on
+        # rate of block arrival
+
     def run(self):
         while True:
             self.simulate()

@@ -80,7 +80,7 @@ class Peer(object):
         self.active = True
         self.services = [] # Service.handle_message(self, msg) called on message
         self.disconnect_callbacks = []
-        self.env.process(self.run())
+        #self.env.process(self.run())
 
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.name)
@@ -106,14 +106,21 @@ class Peer(object):
 
     def send(self, receiver, msg):
         cnx = Connection(self.env, self, receiver)
+        print "receiver"
+        print type(receiver)
+        print receiver.unspentTransactions
         cnx.send(msg)
 
     def broadcast(self, msg):
         #print "message is :" + str(msg)
         for other in self.connections:
-            #print other
-            self.send(other, msg)
-
+            if not(other == self):
+                if msg not in other.unspentTransactions:
+                    other.unspentTransactions.append(msg)
+                    if other.name == 'p1':
+                        print "Updated Transactions for p1"
+                        print other.unspentTransactions
+            
     def generateTransaction(self):
         #peer should know of all the nodes in the network to whom it can send coins
         #global peers
@@ -134,6 +141,10 @@ class Peer(object):
         coins = random.randint(1,self.balance)
         #update balance     
         tx = Transaction(self.name, receiver, coins)
+        if self.name == 'p1':
+            self.unspentTransactions.append(tx)
+            print "Sender List"
+            print self.unspentTransactions
         self.broadcast(tx)
         print str(self.name) + " generating transaction--> TX" + str(tx)        
         return 
@@ -152,10 +163,10 @@ class Peer(object):
         #have to update the balance, the mining fees once the block gets added to the chain   
         return 
 
-    def run(self):
-        while True:
+    #def run(self):
+     #   while True:
             # check network for new messages
-            print self, 'waiting for message'
-            msg = yield self.msg_queue.get()
-            self.receive(msg)
+            #print self, 'waiting for message'
+            #msg = yield self.msg_queue.get()
+            #self.receive(msg)
             

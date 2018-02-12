@@ -10,7 +10,7 @@ n = int(sys.argv[1])
 SIM_DURATION = 5
 Mbits = 1000000
 VISUALIZATION = False
-VISUALIZATION = True
+#VISUALIZATION = True
 
 def initializePeer(peer_id, peer_type, env):
     return Peer(peer_id, peer_type, env)
