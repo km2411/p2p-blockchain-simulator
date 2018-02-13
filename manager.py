@@ -23,9 +23,6 @@ class Manager:
         return self.peer.connections.keys()
 
     def simulate(self):
-        # CASE: too few peers
-        #if random.randint(0,1):
-        #    self.peer.generateTransaction()
         #check the time constraint before generating the txn
 
         if (self.peer.sim_time - self.peer.lasttransactiontime ) >= float(np.random.poisson(5,1)[0])/1000:
@@ -33,7 +30,7 @@ class Manager:
 
         #call the create block function with some distribution to keep a check on
         # rate of block arrival
-        if (self.peer.sim_time - self.peer.lastblocktime ) >= float(np.random.poisson(self.peer.Tk_mean,1)[0])/1000: #hasnt heard a block, so create one
+        if (self.peer.sim_time - self.peer.lastBlockArrTime) >= float(np.random.poisson(self.peer.Tk_mean,1)[0])/1000: #hasnt heard a block, so create one
             self.peer.createBlock() #if it hasn't heard a block in tk+Tk time
 
         #if len(self.peer.blk_queue.keys()): #a block has arrived, so it must broadcast
@@ -67,8 +64,9 @@ class Manager:
             if len(blocks_on_nw[latestblock]) >= majority:
                 #add to global chain, local chain of peers, update balance, UTXO, pop blk_q
                 self.peer.globalChain.addBlock(next((x for x in listofblocks_nw if x.blkid == latestblock), None))
+            else:
+                self.getConsensus() #try again 
         else:#resolve fork
-
 
     def run(self):
         while True:

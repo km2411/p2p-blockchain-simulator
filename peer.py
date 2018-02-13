@@ -37,8 +37,10 @@ class Peer(object):
         self.unspentTransactions = []
         self.balance = 100
         self.lasttransactiontime = self.sim_time
-        self.lisofBlocks = []
-        self.lastblocktime = self.sim_time #default time of genesis block
+        self.lisofBlocks = [self.genesisBlock]
+        self.lastBlockHeard = self.genesisBlock #default time of genesis block
+        self.lastBlockArrTime = self.sim_time
+        self.localChain = self.globalChain
         self.Tk_mean = float(np.random.poisson(self.AVG_BLK_ARR_TIME,1)[0]) #average arrival time of a block proportion to cpu power
         self.env = env
         self.connections = dict()
@@ -87,6 +89,7 @@ class Peer(object):
                     if msg not in other.unspentTransactions:
                         other.unspentTransactions.append(msg)
                         arrival_time = delay + self.computeDelay(other,msg)
+                        other.lasttransactiontime = arrival_time
                         other.txn_queue[msg.txid] = arrival_time
                         other.broadcast(msg, arrival_time)
 
@@ -99,16 +102,47 @@ class Peer(object):
             for other in self.connections:
                 if not(other == self):
                     if msg.blkid not in other.blk_queue.keys():
-                        other.lisofBlocks.append(msg)
                         arrival_time = delay + self.computeDelay(other,msg)
-                        other.blk_queue[msg.blkid] = arrival_time
-                        other.lastblocktime = arrival_time
-                        other.broadcast(msg, arrival_time)
-    
+                        #detect fork here by checking the arrival time and lastblock time
+                        flag = other.detectFork(msg, arrival_time) #boolean
+                        if not flag:
+                            other.updateChain(msg,arrival_time)
+                            other.blk_queue[msg.blkid] = arrival_time
+                            other.broadcast(msg, arrival_time)
+                        
                         if other.name == 'p1':
                             print "Block heard by p1"
                             print other.blk_queue
-            
+    
+    def detectFork(self, msg, arrival_time):
+        #same parentlink with different arrival times, different block, resolve fork with latest
+        if msg.parentlink == self.lastBlockHeard.parentlink:
+            if arrival_time > self.lastBlockArrTime:
+                self.lisofBlocks.append(msg) #select the chain with first arrived block
+                self.lastBlockHeard = msg
+                self.lastBlockArrTime = arrival_time
+                self.blk_queue[msg.blkid] = arrival_time
+                self.broadcast(msg, arrival_time)
+                return True  #just add the new block to the list and broadcast
+            else:
+                self.resolveFork(msg, arrival_time) #extend with msg block
+                self.lisofBlocks.append(msg) #select the chain with first arrived block
+                self.blk_queue[msg.blkid] = arrival_time
+                self.broadcast(msg, arrival_time)
+
+        return False
+    
+    def resolveFork(self, msg, arrival_time):
+        #here we remove the last block from the localchain and add msg
+        self.localChain.removeLast()
+        self.localChain.addBlock(msg)
+        
+    def updateChain(self,newBlock,arrTime):
+        newBlock.parentlink = self.lastBlockHeard.blkid
+        self.lisofBlocks.append(newBlock)
+        self.localChain.addBlock(newBlock)
+        self.lastBlockArrTime = newBlock.arrTime
+        
     def generateTransaction(self):
         receiver = self
       
@@ -160,9 +194,12 @@ class Peer(object):
         self.unspentTransactions = self.unspentTransactions[10:] 
        
         newBlock = Block(lisofTransactions,self)
-       
+        newBlock.parentlink = self.lastBlockHeard.blkid
         self.lisofBlocks.append(newBlock)
+        self.blk_queue[newBlock.blkid] = newBlock.timestamp
+        self.localChain.addBlock(newBlock)
+        self.lastBlockArrTime = newBlock.timestamp
         self.broadcast(newBlock, newBlock.timestamp)
-
+        #mark the txns in the UTXO spent
         #have to update the balance, the mining fees once the block gets added to the chain   
         return 
