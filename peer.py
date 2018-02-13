@@ -27,15 +27,17 @@ class Peer(object):
     dij = 96*1000 #bits
     genesisBlock = Block([],None)
     genesisBlock.blkid = '00000000000000000000000000000000'
-    globalChain = BlockChain(genesisBlock, None) #initialize a blockchain with genesis block
+    globalChain = BlockChain(genesisBlock) #initialize a blockchain with genesis block
     all_peers = []
-    AVG_BLK_ARR_TIME = len(all_peers)*1 #no. of peers*max_delay
+    AVG_BLK_ARR_TIME = len(all_peers)*3000 #no. of peers*max_delay
+   
     def __init__(self, name, peer_type, env):
         self.name = name
         self.type = peer_type
         self.unspentTransactions = []
         self.balance = 100
         self.lasttransactiontime = self.sim_time
+        self.lisofBlocks = []
         self.lastblocktime = self.sim_time #default time of genesis block
         self.Tk_mean = float(np.random.poisson(self.AVG_BLK_ARR_TIME,1)[0]) #average arrival time of a block proportion to cpu power
         self.env = env
@@ -97,6 +99,7 @@ class Peer(object):
             for other in self.connections:
                 if not(other == self):
                     if msg.blkid not in other.blk_queue.keys():
+                        other.lisofBlocks.append(msg)
                         arrival_time = delay + self.computeDelay(other,msg)
                         other.blk_queue[msg.blkid] = arrival_time
                         other.lastblocktime = arrival_time
@@ -108,6 +111,7 @@ class Peer(object):
             
     def generateTransaction(self):
         receiver = self
+      
         for other in self.connections:
             #select a random peer to whom to pay the coins
             if random.randint(0,1) and other.name !='PeerServer':
@@ -115,6 +119,7 @@ class Peer(object):
                 break
                 
         sender=self.name
+       
         if self.balance < 1:
             print "insufficient balance"
             return
@@ -142,6 +147,7 @@ class Peer(object):
         #check to see if it has number of unspent transactions >= required block size
         #select the transactions sorted on timestamp
         print str(self) + " is mining...."
+       
         if len(self.unspentTransactions) == 0:
             #check in the UTXO
             self.unspentTransactions.extend(self.UTXO)
@@ -152,7 +158,10 @@ class Peer(object):
 
         lisofTransactions = self.unspentTransactions[:10]
         self.unspentTransactions = self.unspentTransactions[10:] 
+       
         newBlock = Block(lisofTransactions,self)
+       
+        self.lisofBlocks.append(newBlock)
         self.broadcast(newBlock, newBlock.timestamp)
 
         #have to update the balance, the mining fees once the block gets added to the chain   

@@ -11,10 +11,8 @@ class Transaction:
         self.receiver = receiver
         self.coins = coins
         self.status = False #transaction not included in the block
-        #self.size = len(repr(self))
     
     def __repr__(self):
         #TxnID: ID x pays ID y C coins
-        #rint "timestamp: " + str(self.timestamp)
         return str(self.txid) + ": " + str(self.sender) + " pays " + str(self.receiver.name) + " " + str(self.coins) +" coins"
 

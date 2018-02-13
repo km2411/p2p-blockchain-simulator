@@ -16,11 +16,12 @@ class Block:
 class BlockChain:
 	listofBlocks = []
 
-	def __init__(self, newBlock,prevblkid):
+	def __init__(self, newBlock):
 		self.newBlock = newBlock
-		self.newBlock.parentlink = prevblkid
 		self.listofBlocks.append(self.newBlock)
 
+	def addBlock(self,newBlock):
+			
 	def displayChain(self):
 		while len(self.listofBlocks):
 			print self.listofBlocks[0].blkid
