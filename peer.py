@@ -1,8 +1,10 @@
 import simpy
-from messages import BaseMessage
 from transaction import Transaction
 import random
+import numpy as np
 from block import Block
+from block import BlockChain
+import time
 
 class Connection(object):
     """
@@ -13,73 +15,34 @@ class Connection(object):
         self.env = env
         self.sender = sender
         self.receiver = receiver
-        self.start_time = env.now
-
+  
     def __repr__(self):
         return '<Connection %r -> %r>' % (self.sender, self.receiver)
 
-    @property
-    def round_trip(self):
-        # basically backbone latency
-        # evenly distributed pseudo random round trip times
-        rt_min, rt_max = 10, 300 # ms
-        return (rt_min + (id(self.sender) + id(self.receiver)) % (rt_max-rt_min)) / 1000.
-
-    @property
-    def bandwidth(self):
-        return min(self.sender.bandwidth_ul, self.receiver.bandwidth_dl)
-
-    def send(self, msg, connect=False):
-        """
-        fire and forget
-        i.e. we don't get notified if the message was not delivered
-
-        connect : deliver message even if not connected yet
-        """
-        def _transfer():
-            bytes = msg.size
-            delay = bytes / self.sender.bandwidth_ul
-            delay += bytes / self.receiver.bandwidth_dl
-            delay += self.round_trip / 2
-            yield self.env.timeout(delay)
-            if self.receiver.is_connected(msg.sender) or connect:
-                self.receiver.msg_queue.put(msg)
-#                print self, 'delivered', msg
-#        print self, 'transfering', msg
-        self.env.process(_transfer())
-
-
-class BaseService(object):
-    """
-    Added to Peers to provide services like
-    - connection management
-    - monitoring
-    - working on tasks
-
-    """
-    def handle_message(self, receiving_peer, msg):
-        "this callable is added as a listener to Peer.listeners"
-        pass
-
-KBit = 1024 / 8
-
 class Peer(object):
 
-    #default bandwidth, but we update it at the time of creation.
-    bandwidth_ul = 2400 * KBit # bytes/sec
-    bandwidth_dl = 16000 * KBit # bytes/sec
-
+    UTXO = [] #unspent txn pool 
+    sim_time = time.time() #this is the global time in seconds 
+    pij = np.random.uniform(10,500)
+    dij = 96*1000 #bits
+    genesisBlock = Block([],None)
+    genesisBlock.blkid = '00000000000000000000000000000000'
+    globalChain = BlockChain(genesisBlock, None) #initialize a blockchain with genesis block
+    all_peers = []
+    AVG_BLK_ARR_TIME = len(all_peers)*1 #no. of peers*max_delay
     def __init__(self, name, peer_type, env):
         self.name = name
         self.type = peer_type
         self.unspentTransactions = []
         self.balance = 100
+        self.lasttransactiontime = self.sim_time
+        self.lastblocktime = self.sim_time #default time of genesis block
+        self.Tk_mean = float(np.random.poisson(self.AVG_BLK_ARR_TIME,1)[0]) #average arrival time of a block proportion to cpu power
         self.env = env
         self.connections = dict()
-        self.msg_queue = simpy.Store(env)       
-        self.active = True
-        self.services = [] # Service.handle_message(self, msg) called on message
-        self.disconnect_callbacks = []
+        self.txn_queue = {}    
+        self.blk_queue = {}    
+          
         #self.env.process(self.run())
 
     def __repr__(self):
@@ -95,40 +58,58 @@ class Peer(object):
     def is_connected(self, other):
         return other in self.connections
 
-    def receive(self, msg):
-#        print self, 'received', msg
-        assert isinstance(msg, BaseMessage)
-        for s in self.services:
-            print "receive services ";
-            print s
-            assert isinstance(s, BaseService)
-            s.handle_message(self, msg)
+    def computeDelay(self,other,msg):
+        size = 0 
+        if isinstance(msg,Block):
+            size = 8*pow(10,6) #bits
 
-    def send(self, receiver, msg):
-        cnx = Connection(self.env, self, receiver)
-        print "receiver"
-        print type(receiver)
-        print receiver.unspentTransactions
-        cnx.send(msg)
+        delay = self.pij
+        cij = 5*pow(10,3) #bits per ms
 
-    def broadcast(self, msg):
+        if self.type == other.type == 'fast':
+            cij = 100*pow(10,3)
+
+        prop = float(size)/cij
+        queing = float(self.dij)/cij
+
+        delay += prop + queing #in ms
+        #check the resolution of the delay
+        return float(delay)/1000 
+
+    def broadcast(self, msg, delay):
         #print "message is :" + str(msg)
-        for other in self.connections:
-            if not(other == self):
-                if msg not in other.unspentTransactions:
-                    other.unspentTransactions.append(msg)
-                    if other.name == 'p1':
-                        print "Updated Transactions for p1"
-                        print other.unspentTransactions
+        
+        if isinstance(msg,Transaction):
+            for other in self.connections:
+                if not(other == self):
+                    if msg not in other.unspentTransactions:
+                        other.unspentTransactions.append(msg)
+                        arrival_time = delay + self.computeDelay(other,msg)
+                        other.txn_queue[msg.txid] = arrival_time
+                        other.broadcast(msg, arrival_time)
+
+                        if other.name == 'p1':
+                            #print "Updated Transactions for p1"
+                            #print other.unspentTransactions
+                            pass
+        #broadcast a block        
+        else:
+            for other in self.connections:
+                if not(other == self):
+                    if msg.blkid not in other.blk_queue.keys():
+                        arrival_time = delay + self.computeDelay(other,msg)
+                        other.blk_queue[msg.blkid] = arrival_time
+                        other.lastblocktime = arrival_time
+                        other.broadcast(msg, arrival_time)
+    
+                        if other.name == 'p1':
+                            print "Block heard by p1"
+                            print other.blk_queue
             
     def generateTransaction(self):
-        #peer should know of all the nodes in the network to whom it can send coins
-        #global peers
-        #l = len(peers)
-        #r = random.randint(0,l) #peer can generate a transaction to himself too
         receiver = self
         for other in self.connections:
-            #print other.name
+            #select a random peer to whom to pay the coins
             if random.randint(0,1) and other.name !='PeerServer':
                 receiver = other
                 break
@@ -139,34 +120,40 @@ class Peer(object):
             return
 
         coins = random.randint(1,self.balance)
-        #update balance     
+        #update balance    
+
         tx = Transaction(self.name, receiver, coins)
+        self.lasttransactiontime = time.time()
+        #add the new transaction to the unspent pool 
+        self.UTXO.append(tx)
+
         if self.name == 'p1':
             self.unspentTransactions.append(tx)
-            print "Sender List"
-            print self.unspentTransactions
-        self.broadcast(tx)
-        print str(self.name) + " generating transaction--> TX" + str(tx)        
+            #print "Sender List"
+            #print self.unspentTransactions
+        self.broadcast(tx, tx.timestamp)
+        #print str(self.name) + " generating transaction--> TX" + str(tx)        
         return 
+
+    def updateUTXO(self):
+        return
 
     def createBlock(self):
         #check to see if it has number of unspent transactions >= required block size
         #select the transactions sorted on timestamp
-        if len(self.unspentTransactions) < 5:
-            print 'wait for more transactions'
-            return 
-            
-        lisofTransactions = self.unspentTransactions[:5]
-        self.unspentTransactions = self.unspentTransactions[5:] 
-        newBlock = Block(lisofTransactions)
-        self.broadcast(newBlock)
+        print str(self) + " is mining...."
+        if len(self.unspentTransactions) == 0:
+            #check in the UTXO
+            self.unspentTransactions.extend(self.UTXO)
+            if len(self.unspentTransactions) == 0:
+                print 'There are no unspent transactions'
+                return 
+        #add the transactions to the block, max 10
+
+        lisofTransactions = self.unspentTransactions[:10]
+        self.unspentTransactions = self.unspentTransactions[10:] 
+        newBlock = Block(lisofTransactions,self)
+        self.broadcast(newBlock, newBlock.timestamp)
+
         #have to update the balance, the mining fees once the block gets added to the chain   
         return 
-
-    #def run(self):
-     #   while True:
-            # check network for new messages
-            #print self, 'waiting for message'
-            #msg = yield self.msg_queue.get()
-            #self.receive(msg)
-            

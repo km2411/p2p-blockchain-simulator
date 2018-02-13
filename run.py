@@ -7,8 +7,9 @@ import numpy as np
 
 # No. of peers
 n = int(sys.argv[1])
-SIM_DURATION = 5
-Mbits = 1000000
+Peer.num_peers = n
+SIM_DURATION = 30
+#Mbits = 8*1000000
 VISUALIZATION = False
 #VISUALIZATION = True
 
@@ -27,26 +28,25 @@ def createPeers(peer_server, numOfPeers):
 
         #p.connect(peer_server)
         peers.append(p)
-    
-    
+        
+        '''
         if p.type == 'slow':
             p.bandwidth_upload = p.bandwidth_download = 5 * Mbits
         else:
             p.bandwidth_upload = p.bandwidth_download = 100 * Mbits
-
+        '''
     return peers
 
 env = simpy.Environment()
 
 #make a peer server, a boot node which is slow in nature
 pserver = initializePeer('PeerServer', 'slow', env)
-pserver.bandwidth_upload = pserver.bandwidth_download = 5 * Mbits
 
 #intilize the distributions
 #dist to select number of connections for a peer 
-global peers 
 peers = createPeers(pserver, n)
-
+Peer.all_peers=peers
+#print "Peers..." + str(Peer.all_peers)
 print("Starting Simulator")
 print "Peers Connecting...."
 for p in peers:
