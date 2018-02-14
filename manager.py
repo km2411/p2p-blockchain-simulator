@@ -32,24 +32,25 @@ class Manager:
         # rate of block arrival
         if (self.peer.sim_time - self.peer.lastBlockArrTime) >= float(np.random.poisson(self.peer.Tk_mean,1)[0])/1000: #hasnt heard a block, so create one
             self.peer.createBlock() #if it hasn't heard a block in tk+Tk time
-
+            
         #if len(self.peer.blk_queue.keys()): #a block has arrived, so it must broadcast
         #    self.peer.broadcast()
 
         #check if all the nodes have the block last propogated
+        return 
 
     def getConsensus(self):
         blocks_on_nw = {}
         listofblocks_nw = []
-        majority = 1 + len(self.all_peers)/2
+        majority = 1 + len(self.peer.all_peers)/2
         
-        for p in self.all_peers:
+        for p in self.peer.all_peers:
             #case when the block has not yet reached a peer
             #in that case we wait to get consensus or do it by majority
             x = p.blk_queue #sort the blk_queue for all on arrival time
             sorted_x = sorted(x.items(), key=operator.itemgetter(1))
             latestblock = sorted_x[0][0]
-            listofblocks_nw.append(next((x for x in p.listofBlock if x.blkid == latestblock),[]))
+            listofblocks_nw.append(next((x for x in p.listofBlocks if x.blkid == latestblock),[]))
             
             if latestblock in blocks_on_nw.keys():
                 l = [p]
@@ -67,12 +68,15 @@ class Manager:
             else:
                 self.getConsensus() #try again 
         else:#resolve fork
+            pass
+
+        return 
 
     def run(self):
         while True:
             self.peer.sim_time = time.time()
             self.simulate()
-            self.getConsensus()
+            #self.getConsensus()
             yield self.env.timeout(1)
 
 

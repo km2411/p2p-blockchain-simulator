@@ -21,16 +21,26 @@ class BlockChain:
 		self.listofBlocks.append(self.newBlock)
 
 	def addBlock(self,newBlock):
+		for b in self.listofBlocks:
+			if newBlock.blkid == b.blkid:
+				print "adding a block already present"
+				return
+
 		lastblkid = self.listofBlocks[len(self.listofBlocks)-1].blkid
 		newBlock.parentlink = lastblkid
 		self.listofBlocks.append(newBlock)
+		return 
+
+	def getLast(self):
+		return self.listofBlocks[len(self.listofBlocks)-1]
 
 	def removeLast(self):
 		self.listofBlocks = self.listofBlocks[:len(self.listofBlocks)-1]
+		return 
 
 	def displayChain(self):
 		l=0
 		while  l < len(self.listofBlocks):
-			print self.listofBlocks[l].blkid
-			print self.listofBlocks[l]
+			print "parent: " + str(self.listofBlocks[l].parentlink) + " <------ block :"+	str(self.listofBlocks[l].blkid)
 			l+=1
+		return 

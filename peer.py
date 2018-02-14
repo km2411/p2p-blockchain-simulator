@@ -37,7 +37,7 @@ class Peer(object):
         self.unspentTransactions = []
         self.balance = 100
         self.lasttransactiontime = self.sim_time
-        self.lisofBlocks = [self.genesisBlock]
+        self.listofBlocks = [self.genesisBlock]
         self.lastBlockHeard = self.genesisBlock #default time of genesis block
         self.lastBlockArrTime = self.sim_time
         self.localChain = self.globalChain
@@ -45,7 +45,7 @@ class Peer(object):
         self.env = env
         self.connections = dict()
         self.txn_queue = {}    
-        self.blk_queue = {}    
+        self.blk_queue = {'00000000000000000000000000000000':self.sim_time}    
           
         #self.env.process(self.run())
 
@@ -86,48 +86,66 @@ class Peer(object):
         if isinstance(msg,Transaction):
             for other in self.connections:
                 if not(other == self):
-                    if msg not in other.unspentTransactions:
+                    if msg.txid not in other.txn_queue.keys():
                         other.unspentTransactions.append(msg)
                         arrival_time = delay + self.computeDelay(other,msg)
                         other.lasttransactiontime = arrival_time
                         other.txn_queue[msg.txid] = arrival_time
                         other.broadcast(msg, arrival_time)
 
-                        if other.name == 'p1':
-                            #print "Updated Transactions for p1"
+                        #if other.name == 'p1':
+                            #print "----------Local Chain for p1--------"
                             #print other.unspentTransactions
-                            pass
+                            #other.localChain.displayChain()
+                            #pass
         #broadcast a block        
         else:
             for other in self.connections:
                 if not(other == self):
                     if msg.blkid not in other.blk_queue.keys():
+                        #adding any block heard by a peer
+                        print "sending block.. " + str(msg.blkid) + " to " + str(other) + str(other.blk_queue.keys())
                         arrival_time = delay + self.computeDelay(other,msg)
+                        other.blk_queue[msg.blkid] = arrival_time
+                          
                         #detect fork here by checking the arrival time and lastblock time
                         flag = other.detectFork(msg, arrival_time) #boolean
                         if not flag:
                             other.updateChain(msg,arrival_time)
-                            other.blk_queue[msg.blkid] = arrival_time
                             other.broadcast(msg, arrival_time)
                         
                         if other.name == 'p1':
                             print "Block heard by p1"
                             print other.blk_queue
-    
+                            print "----------Local Chain for p1--------"
+                            #print other.unspentTransactions
+                            other.localChain.displayChain()
+        return
+
+    def displayTree(self):
+        #f = open()
+        #for i in self.listofBlocks:
+        #    print "parent " + str(i.parentlink) + "<---- " + str(i.blkid)  
+        return
+
     def detectFork(self, msg, arrival_time):
+        print "Two new blocks received...detecting fork.."
         #same parentlink with different arrival times, different block, resolve fork with latest
-        if msg.parentlink == self.lastBlockHeard.parentlink:
+            
+        if msg.parentlink == self.localChain.getLast().parentlink:
+            print "Fork detected....at peer: " + str(self.name)
+            #print "Tree at this peer: " 
+            #self.displayTree()
+
             if arrival_time > self.lastBlockArrTime:
-                self.lisofBlocks.append(msg) #select the chain with first arrived block
+                self.listofBlocks.append(msg) #select the chain with first arrived block
                 self.lastBlockHeard = msg
                 self.lastBlockArrTime = arrival_time
-                self.blk_queue[msg.blkid] = arrival_time
                 self.broadcast(msg, arrival_time)
                 return True  #just add the new block to the list and broadcast
             else:
                 self.resolveFork(msg, arrival_time) #extend with msg block
-                self.lisofBlocks.append(msg) #select the chain with first arrived block
-                self.blk_queue[msg.blkid] = arrival_time
+                self.listofBlocks.append(msg) #select the chain with first arrived block
                 self.broadcast(msg, arrival_time)
 
         return False
@@ -136,13 +154,17 @@ class Peer(object):
         #here we remove the last block from the localchain and add msg
         self.localChain.removeLast()
         self.localChain.addBlock(msg)
-        
-    def updateChain(self,newBlock,arrTime):
-        newBlock.parentlink = self.lastBlockHeard.blkid
-        self.lisofBlocks.append(newBlock)
+        return 
+
+    def updateChain(self,newBlock, arrival_time):
+        if newBlock == self.localChain.getLast():
+            return
+        newBlock.parentlink = self.localChain.getLast().blkid
+        self.listofBlocks.append(newBlock)
         self.localChain.addBlock(newBlock)
-        self.lastBlockArrTime = newBlock.arrTime
-        
+        self.lastBlockArrTime = arrival_time
+        return 
+
     def generateTransaction(self):
         receiver = self
       
@@ -165,9 +187,9 @@ class Peer(object):
         self.lasttransactiontime = time.time()
         #add the new transaction to the unspent pool 
         self.UTXO.append(tx)
-
-        if self.name == 'p1':
-            self.unspentTransactions.append(tx)
+        self.unspentTransactions.append(tx)
+          
+        #if self.name == 'p1':
             #print "Sender List"
             #print self.unspentTransactions
         self.broadcast(tx, tx.timestamp)
@@ -175,31 +197,44 @@ class Peer(object):
         return 
 
     def updateUTXO(self):
+        # we need to make all the transactions in the chain marked spend in UTXO, local txn list
+        # update the balance for all the nodes
+
         return
 
     def createBlock(self):
         #check to see if it has number of unspent transactions >= required block size
         #select the transactions sorted on timestamp
-        print str(self) + " is mining...."
-       
+        self.updateUTXO()
+
         if len(self.unspentTransactions) == 0:
             #check in the UTXO
             self.unspentTransactions.extend(self.UTXO)
             if len(self.unspentTransactions) == 0:
-                print 'There are no unspent transactions'
+                #print 'There are no unspent transactions'
                 return 
         #add the transactions to the block, max 10
 
         lisofTransactions = self.unspentTransactions[:10]
         self.unspentTransactions = self.unspentTransactions[10:] 
-       
-        newBlock = Block(lisofTransactions,self)
+
+        newBlock = Block(lisofTransactions,self)  
         newBlock.parentlink = self.lastBlockHeard.blkid
-        self.lisofBlocks.append(newBlock)
+        for i in self.listofBlocks:
+            if newBlock.blkid == i.blkid:
+                self.unspentTransactions.extend(newBlock.transactions)
+                #print "mining a block already present"
+                return
+
+        print str(self) + " is mining...."
+        self.listofBlocks.append(newBlock)
         self.blk_queue[newBlock.blkid] = newBlock.timestamp
         self.localChain.addBlock(newBlock)
         self.lastBlockArrTime = newBlock.timestamp
+        print "block successfully created by " + str(self) + " "+ str(newBlock)
+        print "linked to " + str(newBlock.parentlink)
         self.broadcast(newBlock, newBlock.timestamp)
-        #mark the txns in the UTXO spent
-        #have to update the balance, the mining fees once the block gets added to the chain   
+
         return 
+        #mark the txns in the UTXO spent
+        #have to update the balance, the mining fees once the block gets added to the chain  

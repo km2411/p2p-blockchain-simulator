@@ -8,7 +8,7 @@ import numpy as np
 # No. of peers
 n = int(sys.argv[1])
 Peer.num_peers = n
-SIM_DURATION = 30
+SIM_DURATION = 240
 #Mbits = 8*1000000
 VISUALIZATION = False
 #VISUALIZATION = True
@@ -64,3 +64,42 @@ if VISUALIZATION:
     Visualizer(env, peers)
 else:
     env.run(until=SIM_DURATION)
+print "simulation has ended..."
+for p in Peer.all_peers:
+    filename = p.name + ".txt"
+    f = open(filename,'w')
+    f.write('[ "None", ')
+    for b in p.blk_queue.keys():
+        f.write("'")
+        f.write(str(b))
+        f.write("'")
+        f.write(',')
+    f.write(']')
+    f.write('\n')
+    f.write('[')    
+    f.write('\n')
+    count =0
+    for b in p.listofBlocks:
+        f.write('{ from:')
+        if b.parentlink ==None:
+            f.write("'None'")
+        else:
+            arr_time_parent = str(p.blk_queue[b.parentlink])
+            f.write("'")
+            f.write(str(b.parentlink))# +" "+ arr_time_parent)
+            f.write("'")
+        f.write(', to:')
+        if b.blkid =='00000000000000000000000000000000':
+            f.write("'00000000000000000000000000000000'")
+        else:
+            arr_time_block = str(p.blk_queue[b.blkid])
+            f.write("'")
+            f.write(str(b.blkid))# +" "+ arr_time_block)
+            f.write("'")
+        edge = 'e'+str(count)
+        f.write(", name: '")
+        f.write(edge)
+        f.write("'},")
+        f.write('\n')
+    f.write(']')
+    f.close()
