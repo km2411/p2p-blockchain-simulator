@@ -7,10 +7,6 @@ from block import BlockChain
 import time
 
 class Connection(object):
-    """
-    Models the data transfer between peers and the implied latency
-    """
-
     def __init__(self, env, sender, receiver):
         self.env = env
         self.sender = sender
@@ -23,13 +19,15 @@ class Peer(object):
 
     UTXO = [] #unspent txn pool 
     sim_time = time.time() #this is the global time in seconds 
-    pij = np.random.uniform(10,500)
+    pij = np.random.uniform(10,500) #fixed prop delay, choosen from uniform dist.
     dij = 96*1000 #bits
-    genesisBlock = Block([],None)
+    genesisBlock = Block([],None) #initialize a genesis block for the nw
     genesisBlock.blkid = '00000000000000000000000000000000'
     globalChain = BlockChain(genesisBlock) #initialize a blockchain with genesis block
-    all_peers = []
-    AVG_BLK_ARR_TIME = len(all_peers)*3000 #no. of peers*max_delay
+    all_peers = [] #list of all the peers in nw
+    txn_interval_mean = 10 #avg. time bw two txns in ms
+    mean_Tk = 3000 #from my observation of 3 sec avg. prop delay on nw
+    AVG_BLK_ARR_TIME = len(all_peers)*mean_Tk #no. of peers*max_delay
    
     def __init__(self, name, peer_type, env):
         self.name = name
@@ -46,9 +44,7 @@ class Peer(object):
         self.connections = dict()
         self.txn_queue = {}    
         self.blk_queue = {'00000000000000000000000000000000':self.sim_time}    
-          
-        #self.env.process(self.run())
-
+      
     def __repr__(self):
         return '<%s %s>' % (self.__class__.__name__, self.name)
     
@@ -68,36 +64,31 @@ class Peer(object):
             size = 8*pow(10,6) #bits
 
         delay = self.pij
-        cij = 5*pow(10,3) #bits per ms
+        cij = 5*pow(10,3) #link speed bits per ms
 
         if self.type == other.type == 'fast':
             cij = 100*pow(10,3)
 
         prop = float(size)/cij
-        queing = float(self.dij)/cij
+        queing = np.random.exponential((float(self.dij)/cij),1)[0]
 
         delay += prop + queing #in ms
-        #check the resolution of the delay
         return float(delay)/1000 
 
-    def broadcast(self, msg, delay):
-        #print "message is :" + str(msg)
+    def broadcast(self, msg, delay): #broadcast msg to all other peer
+        #ensure there are no loops by checking that the msg has not already been received
         
+        #broadcast rules if a msg is a txn
         if isinstance(msg,Transaction):
             for other in self.connections:
                 if not(other == self):
                     if msg.txid not in other.txn_queue.keys():
                         other.unspentTransactions.append(msg)
                         arrival_time = delay + self.computeDelay(other,msg)
-                        other.lasttransactiontime = arrival_time
+                        #other.lasttransactiontime = arrival_time
                         other.txn_queue[msg.txid] = arrival_time
                         other.broadcast(msg, arrival_time)
 
-                        #if other.name == 'p1':
-                            #print "----------Local Chain for p1--------"
-                            #print other.unspentTransactions
-                            #other.localChain.displayChain()
-                            #pass
         #broadcast a block        
         else:
             for other in self.connections:
@@ -122,21 +113,13 @@ class Peer(object):
                             other.localChain.displayChain()
         return
 
-    def displayTree(self):
-        #f = open()
-        #for i in self.listofBlocks:
-        #    print "parent " + str(i.parentlink) + "<---- " + str(i.blkid)  
-        return
-
     def detectFork(self, msg, arrival_time):
         print "Two new blocks received...detecting fork.."
         #same parentlink with different arrival times, different block, resolve fork with latest
             
         if msg.parentlink == self.localChain.getLast().parentlink:
             print "Fork detected....at peer: " + str(self.name)
-            #print "Tree at this peer: " 
-            #self.displayTree()
-
+         
             if arrival_time > self.lastBlockArrTime:
                 self.listofBlocks.append(msg) #select the chain with first arrived block
                 self.lastBlockHeard = msg
@@ -166,8 +149,7 @@ class Peer(object):
         return 
 
     def generateTransaction(self):
-        receiver = self
-      
+        receiver = self  
         for other in self.connections:
             #select a random peer to whom to pay the coins
             if random.randint(0,1) and other.name !='PeerServer':
@@ -189,17 +171,12 @@ class Peer(object):
         self.UTXO.append(tx)
         self.unspentTransactions.append(tx)
           
-        #if self.name == 'p1':
-            #print "Sender List"
-            #print self.unspentTransactions
         self.broadcast(tx, tx.timestamp)
-        #print str(self.name) + " generating transaction--> TX" + str(tx)        
         return 
 
     def updateUTXO(self):
         # we need to make all the transactions in the chain marked spend in UTXO, local txn list
         # update the balance for all the nodes
-
         return
 
     def createBlock(self):

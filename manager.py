@@ -5,7 +5,6 @@ import numpy as np
 import operator
 
 class Manager:
-    #simulation_time = time.time()
     
     def __init__(self, peer):
         self.peer = peer
@@ -25,17 +24,13 @@ class Manager:
     def simulate(self):
         #check the time constraint before generating the txn
 
-        if (self.peer.sim_time - self.peer.lasttransactiontime ) >= float(np.random.poisson(5,1)[0])/1000:
+        if (self.peer.sim_time - self.peer.lasttransactiontime ) >= float(np.random.poisson(self.peer.txn_interval_mean,1)[0])/1000:
             self.peer.generateTransaction()
 
-        #call the create block function with some distribution to keep a check on
-        # rate of block arrival
+        #call the create block function with some distribution to keep a check on rate of block arrival
         if (self.peer.sim_time - self.peer.lastBlockArrTime) >= float(np.random.poisson(self.peer.Tk_mean,1)[0])/1000: #hasnt heard a block, so create one
             self.peer.createBlock() #if it hasn't heard a block in tk+Tk time
             
-        #if len(self.peer.blk_queue.keys()): #a block has arrived, so it must broadcast
-        #    self.peer.broadcast()
-
         #check if all the nodes have the block last propogated
         return 
 

@@ -2,8 +2,8 @@ import time
 import hashlib
 
 class Block:
-	size = 10 # number of transactions
-	def __init__(self, listofTransactions, miner):#self.blkid = #increment a global txid plus current time
+	size = 10 # limit on number of transactions
+	def __init__(self, listofTransactions, miner):
 		self.timestamp = time.time()
 		self.blkid = hashlib.md5(str(self.timestamp)).hexdigest()
 		self.transactions = listofTransactions

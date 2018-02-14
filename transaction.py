@@ -6,7 +6,7 @@ class Transaction:
 
     def __init__(self, sender,receiver, coins):
         self.timestamp = time.time()
-        self.txid = hashlib.md5(str(random.randint(1,100))+str(self.timestamp)).hexdigest()#incremented global txid + current time
+        self.txid = hashlib.md5(str(random.randint(1,100))+str(self.timestamp)).hexdigest()
         self.sender = sender
         self.receiver = receiver
         self.coins = coins

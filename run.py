@@ -5,21 +5,22 @@ from peer import  Peer
 from manager import Manager
 import numpy as np
 
-# No. of peers
-n = int(sys.argv[1])
-Peer.num_peers = n
-SIM_DURATION = 240
-#Mbits = 8*1000000
+n = int(sys.argv[1]) # No. of peers
+z = int(sys.argv[3]) #percent of slow nodes
+txn_interval_mean = int(sys.argv[5]) #in ms
+mean_Tk = int(sys.argv[7]) #in ms
+mean_links = int(sys.argv[9]) #mean for binomial dist., higher the value, denser is the network
+SIM_DURATION = int(sys.argv[11]) #in ms
 VISUALIZATION = False
-#VISUALIZATION = True
+
+Peer.mean_Tk = mean_Tk #default (3000*n) ms
+Peer.txn_interval_mean = txn_interval_mean #default 10 ms
 
 def initializePeer(peer_id, peer_type, env):
     return Peer(peer_id, peer_type, env)
     
 def createPeers(peer_server, numOfPeers):
     peers = []
-    # set z 
-    z = 50
     for i in range(numOfPeers):
         if i < int(numOfPeers * (z / 100)):
             p = initializePeer('p%d' % i, 'slow', env)
@@ -28,13 +29,6 @@ def createPeers(peer_server, numOfPeers):
 
         #p.connect(peer_server)
         peers.append(p)
-        
-        '''
-        if p.type == 'slow':
-            p.bandwidth_upload = p.bandwidth_download = 5 * Mbits
-        else:
-            p.bandwidth_upload = p.bandwidth_download = 100 * Mbits
-        '''
     return peers
 
 env = simpy.Environment()
@@ -42,15 +36,16 @@ env = simpy.Environment()
 #make a peer server, a boot node which is slow in nature
 pserver = initializePeer('PeerServer', 'slow', env)
 
-#intilize the distributions
 #dist to select number of connections for a peer 
 peers = createPeers(pserver, n)
 Peer.all_peers=peers
-#print "Peers..." + str(Peer.all_peers)
+
 print("Starting Simulator")
 print "Peers Connecting...."
+
 for p in peers:
-    while len(p.connections.keys()) < 1 + np.random.binomial(n,0.5,1):
+    links = 1 + np.random.binomial(n,mean_links,1)
+    while len(p.connections.keys()) < links:
         for other in peers:
             prob = random.randint(0,1)
             if prob and (p != other):
@@ -64,7 +59,10 @@ if VISUALIZATION:
     Visualizer(env, peers)
 else:
     env.run(until=SIM_DURATION)
+
 print "simulation has ended..."
+
+#output each node's tree to a file
 for p in Peer.all_peers:
     filename = p.name + ".txt"
     f = open(filename,'w')
