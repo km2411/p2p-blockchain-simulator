@@ -6,11 +6,11 @@ from manager import Manager
 import numpy as np
 
 n = int(sys.argv[1]) # No. of peers
-z = int(sys.argv[3]) #percent of slow nodes
-txn_interval_mean = int(sys.argv[5]) #in ms
-mean_Tk = int(sys.argv[7]) #in ms
-mean_links = int(sys.argv[9]) #mean for binomial dist., higher the value, denser is the network
-SIM_DURATION = int(sys.argv[11]) #in ms
+z = int(sys.argv[2]) #percent of slow nodes
+txn_interval_mean = int(sys.argv[3]) #in ms
+mean_Tk = int(sys.argv[4]) #in ms
+mean_links = int(sys.argv[5]) #mean for binomial dist., higher the value, denser is the network
+SIM_DURATION = int(sys.argv[6]) #in ms
 VISUALIZATION = False
 
 Peer.mean_Tk = mean_Tk #default (3000*n) ms
@@ -22,11 +22,10 @@ def initializePeer(peer_id, peer_type, env):
 def createPeers(peer_server, numOfPeers):
     peers = []
     for i in range(numOfPeers):
-        if i < int(numOfPeers * (z / 100)):
+        if i <= int(numOfPeers * (float(z) / 100)):
             p = initializePeer('p%d' % i, 'slow', env)
         else:
             p = initializePeer('p%d' % i, 'fast', env)
-
         #p.connect(peer_server)
         peers.append(p)
     return peers
@@ -44,7 +43,7 @@ print("Starting Simulator")
 print "Peers Connecting...."
 
 for p in peers:
-    links = 1 + np.random.binomial(n,mean_links,1)
+    links = 1 + np.random.binomial(n,float(mean_links)/100,1)
     while len(p.connections.keys()) < links:
         for other in peers:
             prob = random.randint(0,1)
@@ -64,12 +63,14 @@ print "simulation has ended..."
 
 #output each node's tree to a file
 for p in Peer.all_peers:
+    print p, p.type
     filename = p.name + ".txt"
     f = open(filename,'w')
     f.write('[ "None", ')
     for b in p.blk_queue.keys():
         f.write("'")
         f.write(str(b))
+        #f.write(str(" ArrTime : ")str(p.blk_queue[b]))
         f.write("'")
         f.write(',')
     f.write(']')

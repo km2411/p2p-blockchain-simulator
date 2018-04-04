@@ -117,7 +117,7 @@ class Peer(object):
         print "Two new blocks received...detecting fork.."
         #same parentlink with different arrival times, different block, resolve fork with latest
             
-        if msg.parentlink == self.localChain.getLast().parentlink:
+        if (msg.parentlink == self.localChain.getLast().parentlink) and (msg.blkid != self.localChain.getLast().blkid):
             print "Fork detected....at peer: " + str(self.name)
          
             if arrival_time > self.lastBlockArrTime:
